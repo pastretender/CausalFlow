@@ -1,0 +1,29 @@
+# --- Core Deep Learning & Auto-Diff ---
+torch==2.1.0
+torch-geometric==2.4.0         # For Explainable GNNs and Knowledge Graphs
+gpytorch==1.11                 # For Gaussian Processes / Bayesian layers if needed
+
+# --- Causal Inference & Discovery ---
+causalml==0.14.1               # Tree-based causal inference algorithms
+dowhy==0.10.0                  # Formal causal graph generation and intervention testing
+tigramite==5.2.3               # Specifically for Time-Series Causal Discovery
+
+# --- Symbolic Regression & Math ---
+gplearn==0.4.2                 # Genetic Programming for Symbolic Regression
+sympy==1.12                    # Algebraic manipulation of discovered Alpha formulas
+numpy==1.26.0
+pandas==2.1.1
+scipy==1.11.3
+
+# --- Data, Async Engine & Graphs ---
+asyncio                        # (Standard library) High-frequency event loops
+aiohttp==3.8.5                 # Async web scraping/API calls for alternative data
+networkx==3.1                  # Managing Dynamic Knowledge Graph structures
+
+# --- LLM Integration ---
+openai==1.3.5                  # For generating alpha priors and attribution reports
+langchain==0.0.335             # For orchestrating the LLM prompt chains in Layer 3 & 4
+
+# --- Optimization & Simulation ---
+numba==0.58.1                  # JIT compilation for custom backtest/Sim-to-Real bottlenecks
+ray==2.7.1                     # Distributed computing for concurrent GP search/backtesting
