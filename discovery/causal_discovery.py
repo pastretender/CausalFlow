@@ -2,9 +2,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict
 from scipy.stats import pearsonr
-# In production, use tigramite or statsmodels for robust causal graphs
-# from tigramite.pcmci import PCMCI
-# from tigramite.independence_tests import ParCorr
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import grangercausalitytests
 
 class CausalDiscoveryEngine:
     """
@@ -18,25 +17,37 @@ class CausalDiscoveryEngine:
 
     def _test_granger_causality(self, alpha_series: np.ndarray, return_series: np.ndarray) -> tuple[bool, float]:
         """
-        A lightweight mock of a Granger causality or Transfer Entropy test.
-        In reality, this would use an independence test (like ParCorr) conditioning on past returns.
+        Uses statsmodels to perform a Granger causality test.
         """
-        # Ensure stationarity in production before running this
         min_length = min(len(alpha_series), len(return_series))
         alpha_series = alpha_series[-min_length:]
         return_series = return_series[-min_length:]
 
-        # Test correlation at lag (Alpha at t-1 vs Return at t)
-        # We are looking for predictive causality, meaning past alpha explains future returns
-        # better than past returns alone.
-        lagged_alpha = alpha_series[:-1]
-        target_return = return_series[1:]
+        # Create DataFrame where target (returns) is the first column, predictor (alpha) is the second
+        data = np.column_stack((return_series, alpha_series))
 
-        corr, p_value = pearsonr(lagged_alpha, target_return)
+        # We need at least max_lag + enough degrees of freedom to run Granger Causality
+        if data.shape[0] < self.max_lag * 3 + 1:
+            print("Not enough data lengths for causal inference.")
+            return False, 1.0
 
-        # True if statistically significant causal direction is found
-        is_causal = p_value < self.p_threshold and corr > 0
-        return is_causal, p_value
+        try:
+            # Add a tiny bit of noise to avoid PerfectSeparation/SingularMatrix errors in statsmodels
+            alpha_series = alpha_series + np.random.randn(len(alpha_series)) * 1e-8
+            return_series = return_series + np.random.randn(len(return_series)) * 1e-8
+
+            # Run granger causality test
+            gc_res = grangercausalitytests(data, maxlag=[self.max_lag], verbose=False)
+
+            # Check p-value for the lowest lag
+            p_value = gc_res[self.max_lag][0]['ssr_ftest'][1]
+            is_causal = p_value < self.p_threshold
+
+            return is_causal, p_value
+        except Exception as e:
+            # Fallback if tests fail
+            print(f"Granger causality failed: {e}")
+            return False, 1.0
 
     def filter_spurious_alphas(self, factor_library: List[Dict], market_data: pd.DataFrame, returns: pd.Series) -> List[Dict]:
         """

@@ -1,6 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    from core.base import Layer1DataEngine
+except ImportError:
+    pass
 
 class MicrostructureInverseSolver(nn.Module):
     """
@@ -71,3 +78,41 @@ class MicrostructureInverseSolver(nn.Module):
         # If the first two dims of y_obs are Best Bid and Best Ask, x_true price must lay between them.
 
         return recon_loss + 0.1 * smoothness_penalty
+
+class MicrostructureOnlineLearner:
+    """
+    Wraps the MicrostructureInverseSolver to provide real-time online learning
+    from the streaming L2 order book data.
+    """
+    def __init__(self, solver: MicrostructureInverseSolver, lr: float = 1e-4):
+        self.solver = solver
+        self.optimizer = torch.optim.AdamW(self.solver.parameters(), lr=lr)
+        self.loss_history = []
+
+    def train_step(self, y_obs: torch.Tensor) -> float:
+        """
+        Performs a single online gradient descent step on incoming live data.
+        """
+        self.solver.train()
+        self.optimizer.zero_grad()
+
+        # Forward pass to get clean intent and reconstructed observation
+        x_true, y_recon = self.solver(y_obs)
+
+        # Compute continuity preserving physics loss
+        loss = self.solver.compute_physics_loss(y_obs, y_recon, x_true)
+
+        # Backpropagate and update weights
+        loss.backward()
+
+        # Gradient clipping to prevent exploding gradients from erratic ticks
+        torch.nn.utils.clip_grad_norm_(self.solver.parameters(), max_norm=1.0)
+        self.optimizer.step()
+
+        loss_val = loss.item()
+        self.loss_history.append(loss_val)
+        # Keep history short
+        if len(self.loss_history) > 1000:
+            self.loss_history.pop(0)
+
+        return loss_val

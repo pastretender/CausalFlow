@@ -64,8 +64,12 @@ class AttributionEngine:
         )
 
         # Generate the report via LLM
-        # response = self.llm.chat(formatted_prompt)
-        response = f"Mock LLM Response generated for {trade_data.get('asset')} based on prompt."
+        if hasattr(self.llm, "generate_prompt") and callable(self.llm.generate_prompt):
+            response = self.llm.generate_prompt(formatted_prompt)
+        elif hasattr(self.llm, "chat") and callable(self.llm.chat):
+            response = self.llm.chat(formatted_prompt)
+        else:
+            response = f"Fallback LLM Response generated for {trade_data.get('asset')} based on prompt."
 
         return response
 

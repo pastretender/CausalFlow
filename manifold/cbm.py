@@ -1,8 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Tuple
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    from core.base import Layer2ManifoldMapper
+except ImportError:
+    Layer2ManifoldMapper = object
 
-class OrthogonalCBM(nn.Module):
+from manifold.disentangle import concept_independence_loss
+
+class OrthogonalCBM(nn.Module, Layer2ManifoldMapper if Layer2ManifoldMapper != object else object):
     def __init__(self, input_dim: int, num_concepts: int, output_dim: int = 1):
         """
         Concept Bottleneck Model for Quantitative Finance.
@@ -51,6 +61,13 @@ class OrthogonalCBM(nn.Module):
         # Frobenius norm of the difference
         ortho_loss = torch.norm(gram_matrix - identity, p='fro') ** 2
         return ortho_loss
+
+    def compute_hsic_loss(self, concepts: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
+        """
+        Calculates the Hilbert-Schmidt Independence Criterion to strictly minimize
+        mutual information between concepts (stronger than linear orthogonality).
+        """
+        return concept_independence_loss(concepts, sigma)
 
 # Example Usage & Loss Calculation
 # model = OrthogonalCBM(input_dim=50, num_concepts=5)
